@@ -264,6 +264,19 @@ export function withRemoteConfig<P = any>(
             if (props.data !== prevProps.data) {
               props.store.setData(props.data);
             }
+
+            // 在saas中 source可能切换 需要实时更新source数据源
+            if (props.source !== prevProps.source) {
+              const {env, data} = this.props;
+              const source = (this.props as any)[
+                config.sourceField || 'source'
+              ];
+              if (isPureVariable(source)) {
+                this.syncConfig();
+              } else if (env && isEffectiveApi(source, data)) {
+                this.loadConfig();
+              }
+            }
           }
 
           componentWillUnmount() {

@@ -1,5 +1,6 @@
 import React from 'react';
 import {findDOMNode} from 'react-dom';
+import isEqual from 'lodash/isEqual';
 import {
   Renderer,
   RendererEnv,
@@ -29,7 +30,6 @@ import {BadgeObject} from 'amis-ui';
 import {RemoteOptionsProps, withRemoteConfig} from 'amis-ui';
 import {Spinner, Menu} from 'amis-ui';
 import {ScopedContext, IScopedContext} from 'amis-core';
-import isEqual from 'lodash/isEqual';
 import type {NavigationItem} from 'amis-ui/lib/components/menu';
 import type {MenuItemProps} from 'amis-ui/lib/components/menu/MenuItem';
 
@@ -813,8 +813,8 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
         location,
         level,
         defaultOpenLevel,
-        config,
-        dispatchEvent
+        dispatchEvent,
+        store
       } = props;
 
       const isActive = (link: Link, depth: number) => {
@@ -874,11 +874,10 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
       );
 
       const currentActiveItems = getActiveItems(links, 1, level);
-      const prevActiveItems = getActiveItems(config, 1, level);
-
+      const prevActiveItems = getActiveItems(store.config, 1, level);
       setTimeout(() => {
         if (!isEqual(currentActiveItems, prevActiveItems)) {
-          dispatchEvent('change', {activeItems: currentActiveItems});
+          dispatchEvent('change', {value: currentActiveItems});
         }
       }, 0);
     }
@@ -1167,7 +1166,7 @@ const ConditionBuilderWithRemoteOptions = withRemoteConfig({
         return false;
       }
 
-      env?.jumpTo(filter(link.to as string, data), link as any);
+      !!link.to && env?.jumpTo(filter(link.to as string, data), link as any);
       return true;
     }
 
@@ -1237,14 +1236,15 @@ export class NavigationRenderer extends React.Component<RendererProps> {
     }
   ) {
     const actionType = action?.actionType as any;
+    const value = args?.value || action.data.value;
     if (actionType === 'updateItems') {
       let children: Array<Link> = [];
-      if (args.value) {
-        if (Array.isArray(args.value)) {
+      if (value) {
+        if (Array.isArray(value)) {
           // 只展示触发项的children属性
           // 多个的话 默认只展示第一个
-          if (args.value.length > 0) {
-            const item = args.value.find(
+          if (value.length > 0) {
+            const item = value.find(
               item => item.children && item.children.length
             );
             if (item) {
@@ -1255,8 +1255,8 @@ export class NavigationRenderer extends React.Component<RendererProps> {
               }
             }
           }
-        } else if (typeof args.value === 'string') {
-          const currentLink = this.navRef.getCurrentLink(args.value);
+        } else if (typeof value === 'string') {
+          const currentLink = this.navRef.getCurrentLink(value);
           this.navRef.setState({
             currentKey: currentLink.key || currentLink.label
           });
@@ -1277,9 +1277,7 @@ export class NavigationRenderer extends React.Component<RendererProps> {
       }
     } else if (actionType === 'collapse') {
       const collapsed =
-        args && typeof args.value !== 'undefined'
-          ? args.value
-          : !this.navRef.state.collapsed;
+        typeof value !== 'undefined' ? value : !this.navRef.state.collapsed;
 
       this.navRef.setState({collapsed});
     } else if (actionType === 'reset') {
